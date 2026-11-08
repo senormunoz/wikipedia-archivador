@@ -12,11 +12,18 @@ const {chromium}=require('playwright');const path=require('node:path');
  if(!entry)throw Error('No visual citations detected');
  const archive={url:'https://web.archive.org/web/20010102030405/'+entry.params.url,date:'2001-01-02'};
  await page.evaluate(async({id,archive})=>rpc('apply',{changes:[{id,archive}]}),{id:entry.id,archive});
+
+ const second=data.entries.find(e=>e.id!==entry.id&&/^cita /i.test(e.name.trim())&&!e.params.urlarchivo);
+ if(!second)throw Error('Need a second visual citation');
+ const secondArchive={...archive,url:'https://web.archive.org/web/20010102030405/'+second.params.url};
+ // Both writes use the original review snapshot, without re-reading between them.
+ await page.evaluate(({id,archive})=>rpc('apply',{changes:[{id,archive}]}),{id:second.id,archive:secondArchive});
  const after=await page.evaluate(()=>rpc('read'));
  if(after.entries.find(e=>e.id===entry.id).params.urlarchivo!==archive.url)throw Error('Visual write failed');
- console.log('VISUAL APPLY OK');
+ if(after.entries.find(e=>e.id===second.id).params.urlarchivo!==secondArchive.url)throw Error('Second visual write failed');
+ console.log('VISUAL sequential individual applications OK');
  console.log('VISUAL SERIALIZATION',await page.evaluate(()=>{const html=ve.init.target.getSurface().getHtml();return {hasArchive:html.includes('20010102030405'),hasDate:html.includes('2001-01-02')};}));
- await page.evaluate(()=>ve.init.target.getSurface().getModel().undo());
+ await page.evaluate(()=>{ve.init.target.getSurface().getModel().undo();ve.init.target.getSurface().getModel().undo();});
  const undo=await page.evaluate(()=>rpc('read'));if(undo.entries.find(e=>e.id===entry.id).params.urlarchivo)throw Error('Visual undo failed');console.log('VISUAL UNDO OK');
  const sourceModelTest=await page.evaluate(()=>{
   const text='Inicio\n\n{{Cita web|url=https://example.org/}}\n\nFinal\n';

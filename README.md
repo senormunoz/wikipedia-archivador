@@ -18,7 +18,7 @@ No requiere compilación, servidor, cuenta de Internet Archive ni clave de API.
 2. Entra en **Editar** (editor visual) o **Editar código**.
 3. Pulsa el icono de la extensión. Comenzará la revisión de las referencias del contenido abierto en el editor, incluidas las modificaciones aún sin publicar.
 4. Revisa el informe y abre las capturas que quieras comprobar. **Detener** permite interrumpir la revisión después de la consulta en curso; las propuestas ya encontradas siguen disponibles.
-5. Pulsa **Aplicar todo** para incorporar todas las propuestas encontradas al editor.
+5. Pulsa **Aplicar referencia** junto a una propuesta para incorporar solo esa referencia. Su botón pasará a **Aplicado**. Puedes continuar con otras referencias o pulsar **Aplicar todo** para incorporar únicamente las pendientes.
 6. Comprueba el resultado y publica la edición desde Wikipedia cuando quieras.
 
 Ejemplo de página para probar: <https://es.wikipedia.org/wiki/Usuario:Senormunoz/Taller/github>.
@@ -93,3 +93,12 @@ Versión inicial privada. Sin publicación en Chrome Web Store.
 - Consulta CDX real realizada con una referencia de MARCA del taller: captura 200 más antigua devuelta, 2024-06-15 19:24:34 UTC.
 - No se publicó ninguna edición de Wikipedia.
 - La carga completa de la extensión no pudo validarse en el Chromium gestionado del entorno: su política `ExtensionInstallBlocklist: ["*"]` bloquea extensiones nuevas. Las pruebas del panel y del puente se ejecutaron sin instalarla.
+
+## Cambios en 0.2.0
+
+- Botón **Aplicar referencia** por cada propuesta; permite aplicar varias referencias sucesivamente y combinarlo con **Aplicar todo**.
+- Las referencias ya aplicadas quedan identificadas y sus botones desactivados.
+- Corregido el cierre del panel con la X, también después de aplicar cambios. Se puede reabrir desde el icono conservando el informe.
+- Pruebas de navegador añadidas para aplicaciones individuales fuera de orden, aplicación de las restantes y cierre/reapertura del panel.
+
+Para actualizar una instalación manual, sustituye los archivos por los de esta versión, pulsa **Recargar** en la tarjeta de la extensión en `chrome://extensions` y recarga también la pestaña de Wikipedia. Si tienes cambios sin publicar, guárdalos o cópialos antes de recargar la página.

@@ -37,5 +37,40 @@ const fs=require('node:fs');const path=require('node:path');const assert=require
  await page.waitForFunction(()=>document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#status').textContent.includes('El texto ha cambiado'));
  assert((await page.locator('#wpTextbox1').inputValue()).endsWith('Mi cambio sin guardar'));
  console.log('PASS: unsaved changes are preserved when the snapshot is stale');
+ // Apply out of source order, then apply only the remaining references.
+ const unarchivedB='{{Cita noticia|url=https://example.org/c|título=Dos}}';
+ const unarchivedC='{{Cita libro|url=https://example.org/d|título=Tres}}';
+ const individualSource=initial+'\n\n'+unarchivedB+'\n\n'+unarchivedC;
+ await page.locator('#wpTextbox1').fill(individualSource);
+ await page.getByRole('button',{name:'Revisar referencias',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#apply').disabled);
+ const individual=page.getByRole('button',{name:'Aplicar referencia',exact:true});
+ assert.equal(await individual.count(),3);
+ await individual.nth(2).click();
+ await page.waitForFunction(()=>document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#status').textContent.includes('2 pendientes'));
+ let partial=await page.locator('#wpTextbox1').inputValue();
+ assert(partial.startsWith(initial+'\n\n'+unarchivedB));
+ assert(partial.endsWith(unarchivedC.slice(0,-2)+'|urlarchivo=https://web.archive.org/web/20010102030405/https://example.org/d|fechaarchivo=2001-01-02}}'));
+ assert.equal(await page.getByRole('button',{name:'Aplicado',exact:true}).count(),1);
+ assert(await page.getByRole('button',{name:'Aplicado',exact:true}).isDisabled());
+ await individual.nth(0).click();
+ await page.waitForFunction(()=>document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#status').textContent.includes('1 pendientes'));
+ partial=await page.locator('#wpTextbox1').inputValue();assert(partial.includes(unarchivedB));
+ await page.getByRole('button',{name:'Aplicar todo',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#status').textContent.includes('0 pendientes'));
+ const final=await page.locator('#wpTextbox1').inputValue();
+ assert.equal((final.match(/fechaarchivo=2001-01-02/g)||[]).length,3);
+ assert(final.includes(initial.split('\n\n')[1]));
+ assert.equal(await page.getByRole('button',{name:'Aplicado',exact:true}).count(),3);
+ assert(await page.getByRole('button',{name:'Aplicar todo',exact:true}).isDisabled());
+ console.log('PASS: individual applications out of order, then Aplicar todo for remaining references');
+ assert(await page.getByRole('dialog',{name:'Wikipedia Archivador'}).isVisible());
+ await page.getByRole('button',{name:'Cerrar',exact:true}).click();
+ assert.equal(await page.getByRole('dialog',{name:'Wikipedia Archivador'}).isVisible(),false);
+ await page.addScriptTag({content:panel});
+ assert(await page.getByRole('dialog',{name:'Wikipedia Archivador'}).isVisible());
+ assert.equal(await page.getByRole('button',{name:'Aplicado',exact:true}).count(),3);
+ console.log('PASS: close after Aplicar todo and reopen the existing panel');
+
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

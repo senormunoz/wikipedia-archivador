@@ -63,7 +63,9 @@
       model.breakpoint();
       // Attribute-only transactions preserve the rest of the unsaved document.
       for (const [node,mw] of grouped) model.change(window.ve.dm.TransactionBuilder.static.newFromAttributeChanges(doc,node.getOuterRange().start,{mw}));
-      model.breakpoint(); snapshot=null; return;
+      model.breakpoint();
+      for (const entry of snapshot.entries) if (grouped.has(entry.node)) entry.mw=JSON.stringify(entry.node.getAttribute('mw'));
+      return;
     }
     if (snapshot.mode==='ve-source') {
       if (visualSurface()!==snapshot.surface || snapshot.surface.getDom()!==snapshot.text) throw Error('El texto ha cambiado. Vuelve a revisar.');
@@ -73,7 +75,7 @@
       if (!snapshot.editor.isCurrent() || snapshot.editor.get()!==snapshot.text) throw Error('El texto ha cambiado. Vuelve a revisar.');
       snapshot.editor.set(payload.text);
     }
-    snapshot=null;
+    snapshot.text=payload.text;
   }
   window.addEventListener('message',async event=>{
     if(event.source!==window || event.origin!==location.origin || event.data?.channel!=='wa-request') return;

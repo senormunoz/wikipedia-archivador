@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Wikipedia Archivador",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Busca la captura 200 más antigua en Wayback y prepara referencias de Wikipedia en español.",
   "permissions": [
     "activeTab",
