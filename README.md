@@ -52,11 +52,12 @@ No crea capturas nuevas, no modifica enlaces sin plantilla, no sustituye archivo
 
 ## Permisos y privacidad
 
+- `storage`: caché temporal y pausas compartidas en la sesión de Chrome.
 - `activeTab` y `scripting`: leer y modificar el editor de la pestaña donde pulses la extensión.
 - `https://web.archive.org/*`: consultar el índice de Wayback desde el proceso de fondo.
 - `core.js` se expone solo a páginas de Wikipedia en español para cargar el módulo desde el script de contenido.
 
-Las URL de las fuentes se envían a **Internet Archive** al revisar. No se envían el artículo completo, las cookies de Wikipedia ni las credenciales. No hay telemetría, servidor propio ni almacenamiento persistente. La caché de consultas repetidas vive únicamente durante la revisión.
+Las URL de las fuentes se envían a **Internet Archive** al revisar. No se envían el artículo completo, las cookies de Wikipedia ni las credenciales. No hay telemetría ni servidor propio. Las URL consultadas y sus resultados se guardan en `chrome.storage.session`, compartido entre pestañas y revisiones y borrado al cerrar el navegador. La caché admite hasta 300 URL: las capturas encontradas caducan a las 24 horas y los resultados sin captura a la hora. Los errores no se guardan como resultados. También se conserva en esa sesión la pausa impuesta por Archive.org para respetarla aunque Chrome suspenda y reactive el proceso de fondo.
 
 ## Desarrollo y validación
 
@@ -102,3 +103,21 @@ Versión inicial privada. Sin publicación en Chrome Web Store.
 - Pruebas de navegador añadidas para aplicaciones individuales fuera de orden, aplicación de las restantes y cierre/reapertura del panel.
 
 Para actualizar una instalación manual, sustituye los archivos por los de esta versión, pulsa **Recargar** en la tarjeta de la extensión en `chrome://extensions` y recarga también la pestaña de Wikipedia. Si tienes cambios sin publicar, guárdalos o cópialos antes de recargar la página.
+
+## Cambios en 0.3.0
+
+Antes de consultar se cuentan las referencias y las URL únicas válidas sin archivo. Las consultas se realizan de una en una entre todas las pestañas, con una separación de 1,5–2,5 segundos; si hay más de 25 URL únicas pendientes, la separación aumenta a 3–5 segundos. Tras recibir limitaciones también aumenta la separación de las consultas posteriores. No se altera el orden de las referencias.
+
+Si Archive.org devuelve **HTTP 429**, la revisión muestra:
+
+> Archive.org ha limitado las consultas. ¿Quieres reanudar en … o prefieres aplicar las referencias ya encontradas y volver en otro momento?
+
+- **Esperar y reanudar** conserva el panel y reintenta la URL limitada al terminar la cuenta atrás. Nunca reintenta antes del plazo indicado por `Retry-After`; si no hay un plazo válido, espera 1 minuto, después 2, 4, 8 y hasta 15 minutos en limitaciones sucesivas, con una pequeña variación adicional. Cada nueva limitación requiere elegir otra vez.
+- **Aplicar las encontradas y terminar** incorpora al editor solo las propuestas pendientes ya encontradas y termina las consultas. Las aplicadas anteriormente se conservan y no se duplican. Si no hay propuestas pendientes, simplemente termina.
+- Los botones individuales y **Aplicar todo** siguen disponibles durante las consultas y las pausas. **Detener** cancela la espera de inmediato. Cerrar con la X oculta el panel, que se puede volver a abrir desde el icono.
+
+No se publica ninguna edición. Si el contenido del editor entra en conflicto con la revisión, se detiene la aplicación de cambios y se solicita revisar de nuevo.
+
+La caché de sesión reduce las peticiones repetidas; una respuesta 429 pausa también las consultas de otras pestañas. No garantiza que Archive.org deje de limitar solicitudes: respeta las señales del servicio y permite terminar sin perder el trabajo encontrado.
+
+Esta versión añade el permiso `storage` para la caché y las pausas de sesión. La validación incluye pruebas unitarias de plazos, caché, concurrencia y recuperación del proceso de fondo, además de pruebas del panel con un 429 simulado, aplicación durante la pausa, reanudación explícita y finalización anticipada.

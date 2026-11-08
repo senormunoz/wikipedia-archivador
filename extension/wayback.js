@@ -1,9 +1,13 @@
 import {archiveDate,sourceURL} from './core.js';
+import {retryDeadline} from './rate-limit.js';
 export async function oldest(url, fetcher=fetch) {
   if (!sourceURL(url)) throw Error('URL no compatible');
   const query=new URLSearchParams({url,matchType:'exact',output:'json',fl:'timestamp,original,statuscode',filter:'statuscode:200',limit:'1'});
   const response=await fetcher(`https://web.archive.org/cdx/search/cdx?${query}`,{signal:AbortSignal.timeout(30000),credentials:'omit',redirect:'error'});
-  if (!response.ok) throw Error(`Wayback respondió HTTP ${response.status}. Vuelve a intentarlo más tarde.`);
+  if (!response.ok) {
+    const error=Error(`Wayback respondió HTTP ${response.status}. Vuelve a intentarlo más tarde.`);
+    error.status=response.status;error.retryAt=retryDeadline(response.headers?.get('Retry-After'));throw error;
+  }
   const rows=await response.json();
   if (!Array.isArray(rows)) throw Error('Respuesta de Wayback inválida');
   if (rows.length===0 || rows.length===1 && rows[0][0]==='timestamp') return null;

@@ -71,6 +71,59 @@ const fs=require('node:fs');const path=require('node:path');const assert=require
  assert(await page.getByRole('dialog',{name:'Wikipedia Archivador'}).isVisible());
  assert.equal(await page.getByRole('button',{name:'Aplicado',exact:true}).count(),3);
  console.log('PASS: close after Aplicar todo and reopen the existing panel');
+ // A 429 pauses queries but individual application and finish remain usable.
+ const limitSource=['a','b','c'].map(x=>`{{Cita web|url=https://rate.org/${x}}}`).join('\n');
+ await page.locator('#wpTextbox1').fill(limitSource);
+ await page.evaluate(()=>{window.rateCalls=[];chrome.runtime.sendMessage=async message=>{
+  rateCalls.push(message);
+  if(message.url.endsWith('/c'))return {limited:true,waitUntil:Date.now()+60000};
+  return {value:{url:'https://web.archive.org/web/20010102030405/'+message.url,date:'2001-01-02'}};
+ };});
+ await page.getByRole('button',{name:'Revisar referencias',exact:true}).click();
+ await page.getByRole('button',{name:'Esperar y reanudar',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Aplicar referencia',exact:true}).first().click();
+ await page.waitForFunction(()=>document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#status').textContent.includes('1 pendientes'));
+ await page.getByRole('button',{name:'Esperar y reanudar',exact:true}).click();
+ await page.getByRole('button',{name:'Aplicar las encontradas y terminar',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#review').disabled);
+ const rateUpdated=await page.locator('#wpTextbox1').inputValue();
+ assert.equal((rateUpdated.match(/fechaarchivo=/g)||[]).length,2);
+ assert(rateUpdated.endsWith('{{Cita web|url=https://rate.org/c}}'));
+ assert.equal(await page.evaluate(()=>rateCalls.length),3);
+ console.log('PASS: applying while limited, then applying only pending findings and cancelling the countdown');
+ // Expiration alone must not retry. The user chooses to wait/resume explicitly.
+ await page.locator('#wpTextbox1').fill(limitSource.split('\n').slice(0,2).join('\n'));
+ await page.evaluate(()=>{window.rateCalls=[];window.limitedOnce=false;chrome.runtime.sendMessage=async message=>{
+  rateCalls.push(message);
+  if(message.url.endsWith('/b')&&!limitedOnce){limitedOnce=true;return {limited:true,waitUntil:Date.now()+200};}
+  return {value:{url:'https://web.archive.org/web/20010102030405/'+message.url,date:'2001-01-02'}};
+ };});
+ await page.getByRole('button',{name:'Revisar referencias',exact:true}).click();
+ await page.getByRole('button',{name:'Esperar y reanudar',exact:true}).waitFor();
+ await page.getByRole('button',{name:'Reanudar ahora',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>rateCalls.length),2);
+ await page.getByRole('button',{name:'Aplicar referencia',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#status').textContent.includes('0 pendientes'));
+ await page.getByRole('button',{name:'Reanudar ahora',exact:true}).click();
+ await page.waitForFunction(()=>!document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#review').disabled);
+ await page.getByRole('button',{name:'Aplicar todo',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#status').textContent.includes('0 pendientes'));
+ assert.equal((await page.locator('#wpTextbox1').inputValue()).match(/fechaarchivo=/g).length,2);
+ assert.equal(await page.evaluate(()=>rateCalls.length),3);
+ console.log('PASS: explicit resume retries the limited URL and preserves individually applied references');
+ // Only unique eligible URLs count toward the large-review threshold.
+ for(const duplicate of [false,true]){
+  const many=Array.from({length:26},(_,i)=>`{{Cita web|url=https://many.org/${duplicate?'same':i}}}`).join('\n');
+  await page.locator('#wpTextbox1').fill(many);
+  await page.evaluate(()=>{window.largeCalls=[];chrome.runtime.sendMessage=async message=>{largeCalls.push(message);return {limited:true,waitUntil:Date.now()+60000};};});
+  await page.getByRole('button',{name:'Revisar referencias',exact:true}).click();
+  await page.getByRole('button',{name:'Esperar y reanudar',exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>largeCalls[0].large),!duplicate);
+  await page.getByRole('button',{name:'Detener',exact:true}).click();
+  await page.waitForFunction(()=>!document.querySelector('#wikipedia-archivador').shadowRoot.querySelector('#review').disabled);
+ }
+ console.log('PASS: count unique eligible URLs and stop a paused review immediately');
+
 
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});
