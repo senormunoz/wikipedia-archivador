@@ -1,0 +1,40 @@
+const {chromium}=require('playwright');const path=require('node:path');
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox',...(process.env.CHROMIUM_CA_SPKI?['--ignore-certificate-errors-spki-list='+process.env.CHROMIUM_CA_SPKI]:[])]});
+ const page=await browser.newPage();
+ page.on('pageerror',e=>console.log('PAGEERROR',e.message));
+ await page.goto('https://es.wikipedia.org/w/index.php?title=Usuario:Senormunoz/Taller/github&veaction=edit',{waitUntil:'domcontentloaded',timeout:60000});
+ await page.waitForFunction(()=>!!window.ve?.init?.target?.getSurface?.(),{timeout:60000});
+ await page.addScriptTag({path:path.join(__dirname,'../extension/bridge.js')});
+ await page.evaluate(()=>{window.rpc=(method,payload)=>new Promise((resolve,reject)=>{const id=crypto.randomUUID();function listener(e){if(e.data?.channel==='wa-response'&&e.data.id===id){window.removeEventListener('message',listener);e.data.error?reject(Error(e.data.error)):resolve(e.data.result);}}window.addEventListener('message',listener);window.postMessage({channel:'wa-request',id,method,payload},location.origin);});});
+ const data=await page.evaluate(()=>rpc('read'));console.log('VISUAL READ',data.entries.length,'templates');
+ const entry=data.entries.find(e=>e.name.trim().toLowerCase()==='cita web'&&!e.params.urlarchivo);
+ if(!entry)throw Error('No visual citations detected');
+ const archive={url:'https://web.archive.org/web/20010102030405/'+entry.params.url,date:'2001-01-02'};
+ await page.evaluate(async({id,archive})=>rpc('apply',{changes:[{id,archive}]}),{id:entry.id,archive});
+ const after=await page.evaluate(()=>rpc('read'));
+ if(after.entries.find(e=>e.id===entry.id).params.urlarchivo!==archive.url)throw Error('Visual write failed');
+ console.log('VISUAL APPLY OK');
+ console.log('VISUAL SERIALIZATION',await page.evaluate(()=>{const html=ve.init.target.getSurface().getHtml();return {hasArchive:html.includes('20010102030405'),hasDate:html.includes('2001-01-02')};}));
+ await page.evaluate(()=>ve.init.target.getSurface().getModel().undo());
+ const undo=await page.evaluate(()=>rpc('read'));if(undo.entries.find(e=>e.id===entry.id).params.urlarchivo)throw Error('Visual undo failed');console.log('VISUAL UNDO OK');
+ const sourceModelTest=await page.evaluate(()=>{
+  const text='Inicio\n\n{{Cita web|url=https://example.org/}}\n\nFinal\n';
+  const doc=ve.dm.sourceConverter.getModelFromSourceText(text);
+  const model=new ve.dm.Surface(doc,undefined,{sourceMode:true});
+  model.initialize();
+  const replacement=text.replace('}}','|fechaarchivo=2001-01-02}}');
+  model.getLinearFragment(doc.getDocumentRange()).insertContent(replacement);
+  return {actual:model.getDom(),expected:replacement};
+ });
+ if(sourceModelTest.actual!==sourceModelTest.expected)throw Error('VE source model changed blank lines: '+JSON.stringify(sourceModelTest));
+ console.log('VE SOURCE MODEL preserves blank lines and trailing newline');
+
+ await page.goto('https://es.wikipedia.org/w/index.php?title=Usuario:Senormunoz/Taller/github&action=edit',{waitUntil:'domcontentloaded',timeout:60000});
+ await page.waitForSelector('#wpTextbox1',{timeout:60000});await page.addScriptTag({path:path.join(__dirname,'../extension/bridge.js')});
+ await page.evaluate(()=>{window.rpc=(method,payload)=>new Promise((resolve,reject)=>{const id=crypto.randomUUID();function listener(e){if(e.data?.channel==='wa-response'&&e.data.id===id){window.removeEventListener('message',listener);e.data.error?reject(Error(e.data.error)):resolve(e.data.result);}}window.addEventListener('message',listener);window.postMessage({channel:'wa-request',id,method,payload},location.origin);});});
+ const source=await page.evaluate(()=>rpc('read'));if(source.mode!=='source')throw Error('Wrong source mode');
+ await page.evaluate(text=>rpc('apply',{text}),source.text+'\n<!-- Prueba local, sin publicar -->');
+ const written=await page.evaluate(()=>rpc('read'));if(!written.text.endsWith('<!-- Prueba local, sin publicar -->'))throw Error('Source apply failed');console.log('SOURCE READ/APPLY OK');
+ await browser.close();
+})().catch(e=>{console.error(e);process.exit(1);});

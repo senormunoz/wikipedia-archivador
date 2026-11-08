@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Wikipedia Archivador",
+  "version": "0.1.0",
+  "description": "Busca la captura 200 más antigua en Wayback y prepara referencias de Wikipedia en español.",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://web.archive.org/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Revisar archivos de referencias"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "core.js"
+      ],
+      "matches": [
+        "https://es.wikipedia.org/*"
+      ]
+    }
+  ]
+}
