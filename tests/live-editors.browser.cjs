@@ -4,7 +4,7 @@ const {chromium}=require('playwright');const path=require('node:path');
  const page=await browser.newPage();
  page.on('pageerror',e=>console.log('PAGEERROR',e.message));
  await page.goto('https://es.wikipedia.org/w/index.php?title=Usuario:Senormunoz/Taller/github&veaction=edit',{waitUntil:'domcontentloaded',timeout:60000});
- await page.waitForFunction(()=>!!window.ve?.init?.target?.getSurface?.(),{timeout:60000});
+ await page.waitForFunction(()=>!!window.ve?.init?.target?.getSurface?.(),null,{timeout:60000});
  await page.addScriptTag({path:path.join(__dirname,'../extension/bridge.js')});
  await page.evaluate(()=>{window.rpc=(method,payload)=>new Promise((resolve,reject)=>{const id=crypto.randomUUID();function listener(e){if(e.data?.channel==='wa-response'&&e.data.id===id){window.removeEventListener('message',listener);e.data.error?reject(Error(e.data.error)):resolve(e.data.result);}}window.addEventListener('message',listener);window.postMessage({channel:'wa-request',id,method,payload},location.origin);});});
  const data=await page.evaluate(()=>rpc('read'));console.log('VISUAL READ',data.entries.length,'templates');

@@ -69,7 +69,7 @@ npm run check
 
 Las pruebas unitarias cubren las cuatro plantillas, estructuras anidadas, conservación de archivos, parámetros vacíos, sustituciones múltiples, conflictos de texto y respuestas CDX. El test del panel de navegador usa respuestas simuladas, sin escribir en Wikipedia. Las pruebas manuales automatizadas del puente se realizaron sobre el taller indicado, con el editor visual real y el editor de código real, sin publicar.
 
-Para ejecutar la prueba del panel con Playwright y Chromium instalados:
+Para ejecutar la prueba del panel con Playwright (probado con 1.62.1) y Chromium instalados:
 
 ```sh
 npm run test:browser
@@ -84,3 +84,12 @@ La comprobación opcional contra Wikipedia real se ejecuta con `npm run test:liv
 - `scripts/check.mjs`: comprobación del manifiesto y sintaxis.
 
 Versión inicial privada. Sin publicación en Chrome Web Store.
+
+### Resultado de esta validación
+
+- 7 pruebas unitarias superadas; manifiesto y sintaxis comprobados.
+- Panel probado en Chromium: vista previa, Aplicar todo, conservación de archivos, segunda ejecución y protección de cambios sin guardar.
+- Puente probado sobre el taller real: lectura, modificación local, serialización y deshacer en el editor visual; lectura y modificación local en el editor de código. Modelo de código de VisualEditor comprobado con líneas en blanco y salto final.
+- Consulta CDX real realizada con una referencia de MARCA del taller: captura 200 más antigua devuelta, 2024-06-15 19:24:34 UTC.
+- No se publicó ninguna edición de Wikipedia.
+- La carga completa de la extensión no pudo validarse en el Chromium gestionado del entorno: su política `ExtensionInstallBlocklist: ["*"]` bloquea extensiones nuevas. Las pruebas del panel y del puente se ejecutaron sin instalarla.
